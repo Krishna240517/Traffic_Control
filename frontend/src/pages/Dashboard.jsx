@@ -1,4 +1,4 @@
- import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useEffect, useState } from "react";
@@ -18,7 +18,6 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import "./Dashboard.css"; // ✅ Import CSS
 
 // Fix Leaflet default marker issue
 delete L.Icon.Default.prototype._getIconUrl;
@@ -34,10 +33,11 @@ export default function Dashboard() {
   const [vehicles, setVehicles] = useState([]);
   const [trafficData, setTrafficData] = useState([]);
   const [finesData, setFinesData] = useState([]);
-  const [alerts, setAlerts] = useState([]); // 🚨 live alerts
-  const [violationStats, setViolationStats] = useState([]); // 🍩 donut data
+  const [alerts, setAlerts] = useState([]);
+  const [violationStats, setViolationStats] = useState([]);
 
-  // Fetch violation type stats
+  const COLORS = ["#3b82f6", "#22d3ee", "#f97316", "#a855f7", "#ef4444"];
+
   useEffect(() => {
     async function fetchViolationStats() {
       try {
@@ -51,7 +51,6 @@ export default function Dashboard() {
     fetchViolationStats();
   }, []);
 
-  // Socket listeners
   useEffect(() => {
     if (!socket || !isConnected) return;
 
@@ -81,23 +80,27 @@ export default function Dashboard() {
     };
   }, [socket, isConnected]);
 
-  const COLORS = ["#ff4d4f", "#1890ff", "#faad14", "#722ed1", "#13c2c2"];
-
   return (
-    <div className="dashboard-container">
-      <h2 className="dashboard-title">Live Traffic Dashboard</h2>
+    <div className="pt-24 p-8 bg-gradient-to-b from-[#0b1120] to-[#111827] min-h-screen font-sans text-white space-y-8">
+      <h2 className="text-4xl font-extrabold text-center mb-2">
+        Live Traffic Dashboard
+      </h2>
 
-      {/* Connection status */}
-      <p className={isConnected ? "status-connected" : "status-disconnected"}>
+      <p
+        className={`text-center font-medium mb-8 ${
+          isConnected ? "text-emerald-400" : "text-rose-500"
+        }`}
+      >
         {isConnected ? "🟢 Connected to server" : "🔴 Disconnected"}
       </p>
 
       {/* Map */}
-      <div className="map-container">
+      <div className="w-full h-96 mb-8 rounded-2xl overflow-hidden border-4 border-blue-500 shadow-xl transition-transform transform hover:scale-105 hover:shadow-cyan-500/50 hover:-translate-y-1">
         <MapContainer
           center={[20.5937, 78.9629]}
           zoom={5}
-          className="map"
+          className="w-full h-full rounded-2xl"
+          scrollWheelZoom={false} // fix navbar overlap
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -107,7 +110,7 @@ export default function Dashboard() {
             .filter((v) => v.lat != null && v.lng != null)
             .map((v) => (
               <Marker key={v.id || v._id} position={[v.lat, v.lng]}>
-                <Popup>
+                <Popup className="bg-gray-900 text-white p-2 rounded-lg shadow-lg">
                   <b>Vehicle ID:</b> {v.id || v._id} <br />
                   <b>Speed:</b> {v.speed || 0} km/h <br />
                   <b>Status:</b> {v.status || "Unknown"}
@@ -117,55 +120,57 @@ export default function Dashboard() {
         </MapContainer>
       </div>
 
-      {/* Charts row */}
-      <div className="charts-row">
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* Congestion */}
-        <div className="chart-card">
-          <h3 className="chart-title">Congestion Levels</h3>
+        <div className="bg-[#1e293b] rounded-2xl p-6 shadow-lg border border-slate-700 transition-all duration-300 hover:shadow-cyan-500/50 hover:-translate-y-1 hover:scale-105">
+          <h3 className="text-xl font-semibold mb-4 text-blue-400">
+            Congestion Levels
+          </h3>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart
               data={trafficData.length ? trafficData : [{ time: "", congestion: 0 }]}
             >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="time" />
-              <YAxis />
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <XAxis dataKey="time" stroke="#94a3b8" />
+              <YAxis stroke="#94a3b8" />
               <Tooltip />
-              <Line type="monotone" dataKey="congestion" stroke="#8884d8" />
+              <Line type="monotone" dataKey="congestion" stroke="#3b82f6" />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
         {/* Fines */}
-        <div className="chart-card">
-          <h3 className="chart-title">Fines Collected</h3>
+        <div className="bg-[#1e293b] rounded-2xl p-6 shadow-lg border border-slate-700 transition-all duration-300 hover:shadow-cyan-500/50 hover:-translate-y-1 hover:scale-105">
+          <h3 className="text-xl font-semibold mb-4 text-blue-400">
+            Fines Collected
+          </h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart
               data={finesData.length ? finesData : [{ day: "", fines: 0 }]}
             >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="day" />
-              <YAxis />
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <XAxis dataKey="day" stroke="#94a3b8" />
+              <YAxis stroke="#94a3b8" />
               <Tooltip />
               <Legend />
-              <Bar dataKey="fines" fill="#82ca9d" />
+              <Bar dataKey="fines" fill="#22d3ee" />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Second row */}
-      <div className="charts-row">
-        {/* 🍩 Violation Types */}
-        <div className="chart-card">
-          <h3 className="chart-title">Violation Types</h3>
+      {/* Second Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Violation Types */}
+        <div className="bg-[#1e293b] rounded-2xl p-6 shadow-lg border border-slate-700 transition-all duration-300 hover:shadow-cyan-500/50 hover:-translate-y-1 hover:scale-105">
+          <h3 className="text-xl font-semibold mb-4 text-blue-400">
+            Violation Types
+          </h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
-                data={
-                  violationStats.length
-                    ? violationStats
-                    : [{ name: "No Data", value: 1 }]
-                }
+                data={violationStats.length ? violationStats : [{ name: "No Data", value: 1 }]}
                 dataKey="value"
                 nameKey="name"
                 cx="50%"
@@ -173,12 +178,9 @@ export default function Dashboard() {
                 outerRadius={100}
                 label
               >
-                {(violationStats.length
-                  ? violationStats
-                  : [{ name: "No Data", value: 1 }]
-                ).map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                ))}
+                {(violationStats.length ? violationStats : [{ name: "No Data", value: 1 }]).map(
+                  (_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                )}
               </Pie>
               <Tooltip />
               <Legend />
@@ -186,16 +188,21 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
 
-        {/* 🚨 Live Alerts */}
-        <div className="alert-box">
-          <h3 className="chart-title">🚨 Live Violation Alerts</h3>
+        {/* Live Alerts */}
+        <div className="bg-[#1e293b] rounded-2xl p-6 shadow-lg border border-slate-700 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-500/50 scrollbar-track-gray-800 transition-all duration-300 hover:shadow-cyan-500/50 hover:-translate-y-1 hover:scale-105">
+          <h3 className="text-xl font-semibold mb-4 text-blue-400">
+            🚨 Live Violation Alerts
+          </h3>
           {alerts.length === 0 ? (
-            <p className="text-gray-600">No violations yet...</p>
+            <p className="text-gray-400">No violations yet...</p>
           ) : (
-            <ul className="alerts-list">
+            <ul className="space-y-3">
               {alerts.map((a, i) => (
-                <li key={i} className="alert-item">
-                  <div className="alert-content">
+                <li
+                  key={i}
+                  className="border border-slate-600 p-3 rounded-xl bg-[#0f172a] hover:bg-[#1e293b] transition-all"
+                >
+                  <div className="text-sm text-gray-300 space-y-1">
                     <span><b>Vehicle:</b> {a.vehicle}</span>
                     <span><b>Type:</b> {a.type}</span>
                     <span><b>Fine:</b> ₹{a.fine}</span>
