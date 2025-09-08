@@ -1,6 +1,7 @@
- import mongoose from "mongoose";
+// backend/models/Violation.js
+import mongoose from "mongoose";
 
-const fineSchema = new mongoose.Schema(
+const violationSchema = new mongoose.Schema(
   {
     vehicle: {
       type: mongoose.Schema.Types.ObjectId,
@@ -16,18 +17,10 @@ const fineSchema = new mongoose.Schema(
       enum: ["Speeding", "Signal Jump", "No Helmet", "Overspeeding", "Other"],
       required: true,
     },
-    amount: {
+    fine: {
       type: Number,
-      required: true,
+      default: 0,
       min: 0,
-    },
-    isPaid: {
-      type: Boolean,
-      default: false,
-    },
-    walletTransaction: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Wallet.transactions", // reference to wallet transaction if deducted
     },
     timestamp: {
       type: Date,
@@ -37,5 +30,5 @@ const fineSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const Fine = mongoose.model("Fine", fineSchema);
-export default Fine;
+const Violation = mongoose.model("Violation", violationSchema);
+export default Violation;

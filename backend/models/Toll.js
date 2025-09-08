@@ -1,36 +1,36 @@
-import mongoose from "mongoose";
+ import mongoose from "mongoose";
 
-const tollSchema = new mongoose.Schema({
+const tollSchema = new mongoose.Schema(
+  {
+    vehicle: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Vehicle",
+      required: true,
+    },
+    driver: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Driver",
+    },
     location: {
-        type: {
-            type: String,
-            enum: ['Point'],
-            default: 'Point'
-        },
-        coordinates: {
-            type: [Number],
-            required: true
-        }
+      type: String,
+      required: true,
     },
-
-    vehicleTypeCharges: {
-        car: { type: Number, default: 50 },
-        bike: { type: Number, default: 20 },
-        bus: { type: Number, default: 100 },
-        truck: { type: Number, default: 150 }
+    amount: {
+      type: Number,
+      required: true,
+      min: 0,
     },
-
-    congestionLevel: {
-        type: Number, 
-        default: 0
+    walletTransaction: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Wallet.transactions",
     },
+    timestamp: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { timestamps: true }
+);
 
-    updatedAt: {
-        type: Date,
-        default: Date.now
-    }
-});
-
-tollSchema.index({location: "2dsphere"});
-const Toll = mongoose.model("Toll",tollSchema);
+const Toll = mongoose.model("Toll", tollSchema);
 export default Toll;
