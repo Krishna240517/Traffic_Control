@@ -1,35 +1,28 @@
-import  Tracking  from "../models/Tracking.js";
-export const saveTracking = async (vehicleId, lat, lng, speed) => {
-  const tracking = new Tracking({
-    vehicle: vehicleId,
-    location: { type: "Point", coordinates: [lng, lat] },
-    speed,
-  });
+ // backend/services/tracking.service.js
+import Tracking from "../models/Tracking.js";
+
+// Save new trip
+export const saveTracking = async (tripData) => {
+  const tracking = new Tracking(tripData);
   return await tracking.save();
 };
 
-export const getLatestTracking = async (vehicleId) => {
-  return await Tracking.findOne({ vehicle: vehicleId })
-    .sort({ timestamp: -1 })
-    .lean();
+// Get the latest trip for a driver
+export const getLatestTracking = async (driverId) => {
+  return await Tracking.findOne({ driverId }).sort({ createdAt: -1 });
 };
 
-export const getAllTracking = async () => {
-  return await Tracking.find({})
-    .populate("vehicle", "plateNumber status")
-    .sort({ timestamp: -1 });
+// Find trips by state
+export const findTripsByState = async (state) => {
+  return await Tracking.find({ state }).sort({ createdAt: -1 });
 };
 
-export const findNearbyVehicles = async (lat, lng, radius = 1000) => {
-  return await Tracking.aggregate([
-    {
-      $geoNear: {
-        near: { type: "Point", coordinates: [parseFloat(lng), parseFloat(lat)] },
-        distanceField: "dist.calculated",
-        maxDistance: parseFloat(radius),
-        spherical: true,
-      },
-    },
-    { $limit: 50 },
-  ]);
+// Find trips by driverId
+export const findTripsByDriver = async (driverId) => {
+  return await Tracking.find({ driverId }).sort({ createdAt: -1 });
+};
+
+// Find trip by tripId
+export const findTripByTripId = async (tripId) => {
+  return await Tracking.findOne({ tripId });
 };

@@ -13,12 +13,22 @@ import Fine from "./models/Fine.js";
 import Toll from "./models/Toll.js";
 import Wallet from "./models/Wallet.js";
 
+const now = new Date();
+
 dotenv.config();
 
 // Load traffic.json
-const trafficData = JSON.parse(
+// const trafficData = JSON.parse(
+//   fs.readFileSync(path.join(process.cwd(), "traffic.json"))
+// );
+
+
+// Load traffic.json
+const rawData = JSON.parse(
   fs.readFileSync(path.join(process.cwd(), "traffic.json"))
 );
+
+const trafficData = Array.isArray(rawData) ? rawData : rawData.records;
 
 const seedData = async () => {
   try {
@@ -64,68 +74,248 @@ const seedData = async () => {
 
     const ownerUser = users.find(u => u.role === "driver");
 
-    // 4️⃣ Vehicles
-    const vehicles = await Vehicle.insertMany([
-      { 
-        plateNumber: "DL01AB1234", 
-        type: "Car", 
-        status: "active",        // lowercase
-        obuId: "OBU001", 
-        ownerId: ownerUser._id 
-      },
-      { 
-        plateNumber: "MH12CD5678", 
-        type: "Truck", 
-        status: "active", 
-        obuId: "OBU002", 
-        ownerId: ownerUser._id 
-      },
-      { 
-        plateNumber: "KA05EF9101", 
-        type: "Bike", 
-        status: "inactive", 
-        obuId: "OBU003", 
-        ownerId: ownerUser._id 
-      },
-    ]);
-    console.log("🚘 Vehicles added");
+console.log("📊 Importing traffic.json into Tracking...");
+
+const tripDocs = [];
+
+for (const trip of trafficData) {
+  // Find vehicle, if not found create one
+  let vehicle = await Vehicle.findOne({ plateNumber: `TEMP-${trip.trip_id}` });
+  if (!vehicle) {
+    vehicle = await Vehicle.create({
+      plateNumber: `TEMP-${trip.trip_id}`,
+      type: "Truck",
+      status: "active",
+      obuId: `OBU-${trip.trip_id}`,
+      ownerId: ownerUser._id,
+    });
+  }
+
+  // Find driver, if not found create one
+  let driver = await Driver.findOne({ licenseNumber: trip.driver_id });
+  if (!driver) {
+    driver = await Driver.create({
+      name: `Driver-${trip.driver_id}`,
+      licenseNumber: trip.driver_id,
+      assignedVehicle: vehicle._id,
+    });
+  }
+
+  // Push tracking doc
+  tripDocs.push({
+    tripId: trip.trip_id,
+    driver: driver._id,
+    vehicle: vehicle._id,
+    route: trip.route,
+    state: trip.state,
+    distance: trip.distance_km,
+    duration: trip.duration_minutes,
+    speed: trip.avg_speed_kmh,
+    behaviorClass: trip.behavior_class,
+    behaviorLabel: trip.behavior_label,
+    sensorFeatures: trip.sensor_features || [],
+    safetyScore: trip.safety_score,
+    grade: trip.grade,
+    weather: trip.weather,
+    timeOfDay: trip.time_of_day,
+    trafficDensity: trip.traffic_density,
+    accidentRisk: trip.accident_risk,
+    timestamp: new Date(trip.timestamp * 1000),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+}
+
+// Bulk insert all tracking docs at once
+if (tripDocs.length > 0) {
+  await Tracking.insertMany(tripDocs, { ordered: false });
+}
+
+console.log(`✅ Inserted ${tripDocs.length} trips from traffic.json into Tracking`);
+
+    
+//  console.log("📊 Importing traffic.json into Tracking...");
+
+// const BATCH_SIZE = 1000;
+// let tripDocs = [];
+// const driverCache = new Map();
+// const vehicleCache = new Map();
+
+// for (let i = 0; i < trafficData.length; i++) {
+//   const trip = trafficData[i];
+
+//   // Cache Vehicle
+//   let vehicle = vehicleCache.get(trip.trip_id);
+//   if (!vehicle) {
+//     vehicle = await Vehicle.create({
+//       plateNumber: `TEMP-${trip.trip_id}`,
+//       type: "Truck",
+//       status: "active",
+//       obuId: `OBU-${trip.trip_id}`,
+//       ownerId: ownerUser._id,
+//     });
+//     vehicleCache.set(trip.trip_id, vehicle);
+//   }
+
+//   // Cache Driver
+//   let driver = driverCache.get(trip.driver_id);
+//   if (!driver) {
+//     driver = await Driver.create({
+//       name: `Driver-${trip.driver_id}`,
+//       licenseNumber: trip.driver_id,
+//       assignedVehicle: vehicle._id,
+//     });
+//     driverCache.set(trip.driver_id, driver);
+//   }
+
+//   // Push Tracking Doc
+//   tripDocs.push({
+//     tripId: trip.trip_id,
+//     driver: driver._id,
+//     vehicle: vehicle._id,
+//     route: trip.route,
+//     state: trip.state,
+//     distance: trip.distance_km,
+//     duration: trip.duration_minutes,
+//     speed: trip.avg_speed_kmh,
+//     behaviorClass: trip.behavior_class,
+//     behaviorLabel: trip.behavior_label,
+//     sensorFeatures: trip.sensor_features || [],
+//     safetyScore: trip.safety_score,
+//     grade: trip.grade,
+//     weather: trip.weather,
+//     timeOfDay: trip.time_of_day,
+//     trafficDensity: trip.traffic_density,
+//     accidentRisk: trip.accident_risk,
+//     timestamp: new Date(trip.timestamp * 1000),
+//     createdAt: new Date(),
+//     updatedAt: new Date(),
+//   });
+
+//   // Insert in batches
+//   if (tripDocs.length >= BATCH_SIZE) {
+//     await Tracking.insertMany(tripDocs, { ordered: false });
+//     console.log(`✅ Inserted ${i + 1} records so far...`);
+//     tripDocs = [];
+//   }
+// }
+
+// // Insert leftovers
+// if (tripDocs.length > 0) {
+//   await Tracking.insertMany(tripDocs, { ordered: false });
+// }
+
+// console.log(`🎉 Done! Inserted ${trafficData.length} trips into Tracking`);
+
+
+ 
+    // // 4️⃣ Vehicles
+    // const vehicles = await Vehicle.insertMany([
+    //   { 
+    //     plateNumber: "DL01AB1234", 
+    //     type: "Car", 
+    //     status: "active",        // lowercase
+    //     obuId: "OBU001", 
+    //     ownerId: ownerUser._id 
+    //   },
+    //   { 
+    //     plateNumber: "MH12CD5678", 
+    //     type: "Truck", 
+    //     status: "active", 
+    //     obuId: "OBU002", 
+    //     ownerId: ownerUser._id 
+    //   },
+    //   { 
+    //     plateNumber: "KA05EF9101", 
+    //     type: "Bike", 
+    //     status: "inactive", 
+    //     obuId: "OBU003", 
+    //     ownerId: ownerUser._id 
+    //   },
+    // ]);
+    // console.log("🚘 Vehicles added");
 
     // 5️⃣ Drivers
-    const drivers = await Driver.insertMany([
-      {
-        name: "Ravi Sharma",
-        licenseNumber: "DL123456",
-        assignedVehicle: vehicles[0]._id,
-      },
-      {
-        name: "Suresh Kumar",
-        licenseNumber: "MH654321",
-        assignedVehicle: vehicles[1]._id,
-      },
-    ]);
-    console.log("👨‍✈️ Drivers added");
+    // const drivers = await Driver.insertMany([
+    //   {
+    //     name: "Ravi Sharma",
+    //     licenseNumber: "DL123456",
+    //     assignedVehicle: vehicles[0]._id,
+    //   },
+    //   {
+    //     name: "Suresh Kumar",
+    //     licenseNumber: "MH654321",
+    //     assignedVehicle: vehicles[1]._id,
+    //   },
+    // ]);
+    // console.log("👨‍✈️ Drivers added");
+     // 6️⃣ Tracking (bulk from traffic.json)
+ // 6️⃣ Tracking (bulk from traffic.json)
 
-    // 6️⃣ Tracking (manual sample)
-    const now = new Date();
-    await Tracking.insertMany([
-      {
-        vehicle: vehicles[0]._id,
-        lat: 28.7041,
-        lng: 77.1025,
-        speed: 60,
-        congestionLevel: 65,
-        timestamp: new Date(now.getTime() - 15 * 60000),
-      },
-      {
-        vehicle: vehicles[1]._id,
-        lat: 19.076,
-        lng: 72.8777,
-        speed: 85,
-        congestionLevel: 85,
-        timestamp: new Date(now.getTime() - 10 * 60000),
-      },
-    ]);
-    console.log("📍 Tracking (manual) added");
+     console.log("📊 Importing traffic.json into Tracking...");
+
+  //   const tripDocs = trafficData.map(trip => ({
+  //     tripId: trip.trip_id,
+  //     driverId: trip.driver_id,
+  //     route: trip.route,
+  //     state: trip.state,
+  //     distanceKm: trip.distance_km,
+  //     durationMinutes: trip.duration_minutes,
+  //     avgSpeedKmh: trip.avg_speed_kmh,
+  //     sensorFeatures: trip.sensor_features || [],
+  //     grade: trip.grade,
+  //     weather: trip.weather,
+  //     timeOfDay: trip.time_of_day,
+  //     accidentRisk: trip.accident_risk,
+  //     createdAt: new Date(),
+  //     updatedAt: new Date(),
+  //   }));
+
+  //    tripDocs.push({
+  //   tripId: trip.trip_id,
+  //   driver: driver._id,
+  //   vehicle: vehicle._id,
+  //   route: trip.route,
+  //   state: trip.state,
+  //   distance: trip.distance_km,
+  //   duration: trip.duration_minutes,
+  //   speed: trip.avg_speed_kmh,
+  //   behaviorClass: trip.behavior_class,
+  //   behaviorLabel: trip.behavior_label,
+  //   sensorFeatures: trip.sensor_features || [],
+  //   safetyScore: trip.safety_score,
+  //   grade: trip.grade,
+  //   weather: trip.weather,
+  //   timeOfDay: trip.time_of_day,
+  //   trafficDensity: trip.traffic_density,
+  //   accidentRisk: trip.accident_risk,
+  //   timestamp: new Date(trip.timestamp * 1000),
+  // });
+
+  //   await Tracking.insertMany(tripDocs, { ordered: false });
+  //   console.log(`✅ Inserted ${tripDocs.length} trips from traffic.json into Tracking`);
+
+    // // 6️⃣ Tracking (manual sample)
+    // const now = new Date();
+    // await Tracking.insertMany([
+    //   {
+    //     vehicle: vehicles[0]._id,
+    //     lat: 28.7041,
+    //     lng: 77.1025,
+    //     speed: 60,
+    //     congestionLevel: 65,
+    //     timestamp: new Date(now.getTime() - 15 * 60000),
+    //   },
+    //   {
+    //     vehicle: vehicles[1]._id,
+    //     lat: 19.076,
+    //     lng: 72.8777,
+    //     speed: 85,
+    //     congestionLevel: 85,
+    //     timestamp: new Date(now.getTime() - 10 * 60000),
+    //   },
+    // ]);
+    // console.log("📍 Tracking (manual) added");
 
     // 7️⃣ Violations (manual)
     await Violation.insertMany([
@@ -178,25 +368,25 @@ const seedData = async () => {
       }
 
       // Tracking
-      await Tracking.create({
-        vehicle: vehicle._id,
-        driver: driver._id,
-        route: trip.route,
-        state: trip.state,
-        distance: trip.distance_km,
-        duration: trip.duration_minutes,
-        speed: trip.avg_speed_kmh,
-        behaviorClass: trip.behavior_class,
-        behaviorLabel: trip.behavior_label,
-        sensorFeatures: trip.sensor_features,
-        safetyScore: trip.safety_score,
-        grade: trip.grade,
-        weather: trip.weather,
-        timeOfDay: trip.time_of_day,
-        trafficDensity: trip.traffic_density,
-        accidentRisk: trip.accident_risk,
-        timestamp: new Date(trip.timestamp * 1000),
-      });
+      // await Tracking.create({
+      //   vehicle: vehicle._id,
+      //   driver: driver._id,
+      //   route: trip.route,
+      //   state: trip.state,
+      //   distance: trip.distance_km,
+      //   duration: trip.duration_minutes,
+      //   speed: trip.avg_speed_kmh,
+      //   behaviorClass: trip.behavior_class,
+      //   behaviorLabel: trip.behavior_label,
+      //   sensorFeatures: trip.sensor_features,
+      //   safetyScore: trip.safety_score,
+      //   grade: trip.grade,
+      //   weather: trip.weather,
+      //   timeOfDay: trip.time_of_day,
+      //   trafficDensity: trip.traffic_density,
+      //   accidentRisk: trip.accident_risk,
+      //   timestamp: new Date(trip.timestamp * 1000),
+      // });
 
       // Fine (random)
       await Fine.create({
@@ -274,7 +464,7 @@ const seedData = async () => {
     console.log("✅ Vehicle stats updated");
 
     console.log("✅ Database Seeding Completed Successfully");
-    process.exit();
+    process.exit(0);
   } catch (error) {
     console.error("❌ Seeding Error:", error);
     process.exit(1);

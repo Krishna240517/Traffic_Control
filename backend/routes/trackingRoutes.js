@@ -1,7 +1,7 @@
  import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
 import { isAdmin } from "../middleware/adminMiddleware.js";
-import { createTracking, getAllTracking, getNearbyVehicles, updateTollCongestion, getCongestedTolls } from "../controllers/trackingController.js";
+import { createTracking, getAllTracking   } from "../controllers/trackingController.js";
 const router = express.Router();
 
 router.use(protect);
@@ -10,18 +10,18 @@ router.use(protect);
 router.post("/", createTracking);
 
 
-router.get("/vehicle/:vehicleId", getNearbyVehicles);
+// router.get("/vehicle/:vehicleId", getNearbyVehicles);
 
 router.get("/get-all-trackings", isAdmin, getAllTracking);
 
-router.get("/nearby", isAdmin, getNearbyVehicles);
+// router.get("/nearby", isAdmin, getNearbyVehicles);
 
 
 // =================== TOLL CONGESTION =================== //
 
-router.patch("/toll/:tollId/congestion", isAdmin, updateTollCongestion);
+// router.patch("/toll/:tollId/congestion", isAdmin, updateTollCongestion);
 
 
-router.get("/toll/congested", getCongestedTolls);
+// router.get("/toll/congested", getCongestedTolls);
 
 export default router;

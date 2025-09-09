@@ -1,71 +1,89 @@
- import * as trackingService from "../services/tracking.service.js";
-import * as congestionService from "../services/congestion.service.js";
-import * as notificationService from "../services/notification.service.js";
-import Vehicle from "../models/Vehicle.js";
+ // backend/controllers/trackingController.js
+import Tracking from "../models/Tracking.js";
 
-// @desc   Create new tracking entry for a vehicle
+// @desc   Create a new trip tracking record
 // @route  POST /api/tracking
 export const createTracking = async (req, res) => {
   try {
-    const { lat, lng, speed } = req.body;
-    const userId = req.user._id;
+    const {
+      tripId,
+      driverId,
+      vehicleId,
+      route,
+      state,
+      distanceKm,
+      durationMinutes,
+      avgSpeedKmh,
+      sensorFeatures,
+      grade,
+      weather,
+      timeOfDay,
+      accidentRisk,
+    } = req.body;
 
-    const vehicle = await Vehicle.findOne({ ownerId: userId });
-    if (!vehicle)
-      return res.status(404).json({ success: false, message: "No vehicle found for this user" });
+    const tracking = new Tracking({
+      tripId,
+      driverId,
+      vehicleId,
+      route,
+      state,
+      distanceKm,
+      durationMinutes,
+      avgSpeedKmh,
+      sensorFeatures,
+      grade,
+      weather,
+      timeOfDay,
+      accidentRisk,
+    });
 
-    const tracking = await trackingService.saveTracking(vehicle._id, lat, lng, speed);
-
-    await congestionService.updateCongestionFromTracking(tracking);
-    await notificationService.checkAndSendAlerts(userId, vehicle._id, tracking);
-
-    res.status(201).json({ success: true, tracking });
+    await tracking.save();
+    res.status(201).json({ success: true, data: tracking });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Error creating tracking", error: error.message });
+    console.error("Error creating tracking:", error);
+    res.status(500).json({ success: false, message: "Error creating trip", error: error.message });
   }
 };
 
-// @desc   Get latest tracking for a vehicle
-// @route  GET /api/tracking/:vehicleId
+// @desc   Get all trips with optional filters
+// @route  GET /api/tracking
 export const getAllTracking = async (req, res) => {
   try {
-    const tracking = await trackingService.getLatestTracking(req.params.vehicleId);
-    res.json({ success: true, tracking });
+    const { driverId, state } = req.query;
+    const filter = {};
+    if (driverId) filter.driverId = driverId;
+    if (state) filter.state = state;
+
+    const trips = await Tracking.find(filter).sort({ createdAt: -1 });
+    res.json({ success: true, count: trips.length, data: trips });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Error fetching vehicle tracking", error: error.message });
+    console.error("Error fetching trips:", error);
+    res.status(500).json({ success: false, message: "Error fetching trips", error: error.message });
   }
 };
 
-// @desc   Get nearby vehicles within a radius
-// @route  GET /api/tracking/nearby
-export const getNearbyVehicles = async (req, res) => {
+// @desc   Get single trip by Mongo ID
+// @route  GET /api/tracking/:id
+export const getTrackingById = async (req, res) => {
   try {
-    const { lat, lng, radius } = req.query;
-    const vehicles = await trackingService.findNearByVehicles(lat, lng, radius);
-    res.json({ success: true, vehicles });
+    const trip = await Tracking.findById(req.params.id);
+    if (!trip) return res.status(404).json({ success: false, message: "Trip not found" });
+    res.json({ success: true, data: trip });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Error fetching nearby vehicles", error: error.message });
+    console.error("Error fetching trip:", error);
+    res.status(500).json({ success: false, message: "Error fetching trip", error: error.message });
   }
 };
 
-// @desc   Update congestion level for a toll
-// @route  PUT /api/tracking/toll/:tollId
-export const updateTollCongestion = async (req, res) => {
+// @desc   Delete a trip record
+// @route  DELETE /api/tracking/:id
+export const deleteTracking = async (req, res) => {
   try {
-    const toll = await congestionService.updateTollCongestion(req.params.tollId, req.body.level);
-    res.json({ success: true, toll });
+    const trip = await Tracking.findByIdAndDelete(req.params.id);
+    if (!trip) return res.status(404).json({ success: false, message: "Trip not found" });
+    res.json({ success: true, message: "Trip deleted successfully" });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Error updating congestion", error: error.message });
-  }
-};
-
-// @desc   Get all congested tolls
-// @route  GET /api/tracking/tolls/congested
-export const getCongestedTolls = async (req, res) => {
-  try {
-    const tolls = await congestionService.getCongestedTolls();
-    res.json({ success: true, tolls });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Error fetching congested tolls", error: error.message });
+    console.error("Error deleting trip:", error);
+    res.status(500).json({ success: false, message: "Error deleting trip", error: error.message });
   }
 };

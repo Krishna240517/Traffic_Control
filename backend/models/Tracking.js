@@ -1,65 +1,30 @@
- import mongoose from "mongoose";
+ // backend/models/Tracking.js
+import mongoose from "mongoose";
 
 const trackingSchema = new mongoose.Schema(
   {
-    vehicle: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Vehicle",
-      required: true,
-    },
+    tripId: { type: String, required: true, unique: true }, // unique trip reference
+    driverId: { type: mongoose.Schema.Types.ObjectId, ref: "Driver", required: true },
+    vehicleId: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle" },
 
-    driver: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Driver",
-    },
-
-    location: {
-      type: {
-        type: String,
-        enum: ["Point"],
-        default: "Point",
-      },
-      coordinates: {
-        type: [Number], // [lng, lat]
-        default: [0, 0],
-      },
-    },
-
-    // Trip details (from traffic.json)
     route: { type: String },
     state: { type: String },
-    distance: { type: Number }, // km
-    duration: { type: Number }, // minutes
-    speed: { type: Number, default: 0 }, // avg_speed_kmh
-    behaviorClass: { type: Number },
-    behaviorLabel: { type: String },
-    sensorFeatures: [{ type: Number }],
-    safetyScore: { type: Number, default: 0 },
-    grade: { type: String, enum: ["A", "B", "C", "D", "F"], default: "F" },
+
+    distanceKm: { type: Number, required: true },
+    durationMinutes: { type: Number, required: true },
+    avgSpeedKmh: { type: Number },
+
+    sensorFeatures: { type: mongoose.Schema.Types.Mixed }, // flexible JSON
+    grade: { type: String, enum: ["A", "B", "C", "D", "E"], default: "C" },
     weather: { type: String },
     timeOfDay: { type: String, enum: ["morning", "afternoon", "evening", "night"] },
-    trafficDensity: { type: String, enum: ["low", "medium", "high"] },
-    accidentRisk: { type: Number, default: 0 },
 
-    congestionLevel: { type: Number, default: 0 },
-
-    timestamp: {
-      type: Date,
-      default: Date.now,
-    },
+    accidentRisk: { type: Number, min: 0, max: 1 }, // probability between 0 and 1
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
-
-trackingSchema.index({ location: "2dsphere" });
-
-trackingSchema.virtual("lat").get(function () {
-  return this.location.coordinates[1];
-});
-
-trackingSchema.virtual("lng").get(function () {
-  return this.location.coordinates[0];
-});
 
 const Tracking = mongoose.model("Tracking", trackingSchema);
 export default Tracking;
