@@ -16,15 +16,21 @@ const transactionSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    relatedUser: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref:"User"
+    },
     relatedFine: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Fine",
       default: null,
+      sparse: true
     },
     relatedToll: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Toll",
       default: null,
+      sparse: true
     },
     date: {
       type: Date,

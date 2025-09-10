@@ -1,6 +1,6 @@
- import mongoose from "mongoose";
+import mongoose from "mongoose";
 import Fine from "../models/Fine.js";
-
+import User from "../models/User.js";
 // @desc   Issue a new fine
 // @route  POST /api/fines
 export const issueFine = async (req, res) => {
@@ -109,3 +109,50 @@ export const updateFine = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
+export const getMyFines = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const fines = await Fine.find({ driver: userId })
+      .populate("vehicle", "plateNumber")
+    if (fines.length === 0) return res.status(404).json({ msg: "No fines" });
+  } catch (error) {
+    console.error("Error in getMyFines controller", error.message);
+    return res.status(500).json({ msg: "Internal Server Error" });
+  }
+}
+
+export const payFine = async (req, res) => {
+  try {
+    const { fineId: id } = req.params;
+    const [fine, user] = Promise.all([
+      await Fine.findById(id),
+      await User.findById(req.user._id)
+    ]);
+    const fineAmount = fine.amount;
+    const userWalletBalance = user.walletBalance;
+    if (userWalletBalance < fineAmount) {
+      return res.status(401).json({ msg: "Insufficient Balance" });
+    }
+    user.walletBalance -= fineAmount;
+
+
+    const newTrans = new Wallet({
+      type: "credit",
+      amount: fineAmount,
+      description: fine.type,
+      relatedUser: user._id,
+      relatedFine: fine._id,
+    });
+
+    await Promise.all([
+      newTrans.save(),
+      user.save(),
+      Fine.findByIdAndDelete(id)
+    ]);
+    return res.status(200).json({ msg: "Fine paid successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: "Internal Server Error" });
+  }
+}

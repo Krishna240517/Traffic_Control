@@ -1,6 +1,6 @@
 // routes/violationRoutes.js
  import express from "express";
- import { issueFine, listFines, updateFine } from "../controllers/fineController.js";
+ import { issueFine, listFines, updateFine, getMyFines, payFine } from "../controllers/fineController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { isAdmin } from "../middleware/adminMiddleware.js";
 
@@ -28,8 +28,8 @@ router.get("/list", protect, isAdmin, listFines);
 router.put("/:fineId", protect, isAdmin, updateFine);
 
 /* USER ROUTES */
-router.get("/my-fines", protect); 
-router.post("/pay/:fineId", protect); //todo: payment gateway required
+router.get("/my-fines", protect, getMyFines); 
+router.post("/pay/:fineId", protect, payFine);
 
 
 

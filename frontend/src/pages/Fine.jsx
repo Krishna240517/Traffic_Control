@@ -1,59 +1,72 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowLeft, CreditCard, Search, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
+const token = localStorage.getItem("token");
 const Fine = () => {
   const navigate = useNavigate();
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [fines, setFines] = useState([
-    {
-      id: "1",
-      registrationNumber: "DL01AB1234",
-      fineType: "Overspeeding",
-      amount: 2000,
-      location: "Delhi-Gurgaon Expressway",
-      date: "2024-01-15",
-      status: "pending",
-      description: "Speed: 85 km/h in 60 km/h zone",
-    },
-    {
-      id: "2",
-      registrationNumber: "MH02CD5678",
-      fineType: "Signal Jump",
-      amount: 1000,
-      location: "Bandra Kurla Complex",
-      date: "2024-01-20",
-      status: "paid",
-      description: "Crossed red signal at 14:32",
-    },
-    {
-      id: "3",
-      registrationNumber: "DL01AB1234",
-      fineType: "Wrong Lane",
-      amount: 500,
-      location: "Connaught Place",
-      date: "2024-01-22",
-      status: "pending",
-      description: "Driving in bus lane",
-    },
-  ]);
+  const [fines, setFines] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFines = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/violations/my-fines", {
+          headers:{
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+        });
+        if (!res.ok) {
+          throw new Error(`Error: ${res.status}`);
+        }
+        const data = await res.json();
+        setFines(data);
+      } catch (err) {
+        console.error("Error fetching fines:", err);
+        setFines([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchFines();
+  }, []);
 
   const filteredFines = fines.filter((fine) =>
     fine.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handlePayFine = (id) => {
-    setFines(
-      fines.map((fine) =>
-        fine.id === id ? { ...fine, status: "paid" } : fine
-      )
-    );
+  const handlePayFine = async (fineId) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/violations/pay/${fineId}`,{
+        method: "POST",
+        headers: {
+          "Content-Type":"application/json",
+          Authorization:`Bearer ${token}`
+        }
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.msg || "Failed to pay fine");
+      }
+      setFines((prev) => prev.filter((fine) => fine._id !== fineId));
+    } catch (err) {
+      console.error("Error paying fine:", err);
+    }
   };
 
   const totalPending = filteredFines
-    .filter((f) => f.status === "pending")
+    .filter((f) => !f.isPaid)
     .reduce((sum, f) => sum + f.amount, 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-white">
+        Loading fines...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white pt-24 px-6 md:px-12">
@@ -78,13 +91,6 @@ const Fine = () => {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="flex-1 p-3 rounded-lg bg-gray-800 border border-gray-700 focus:outline-none focus:border-blue-500"
         />
-        <button
-          onClick={() => {}}
-          className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg shadow-md transition flex items-center gap-2"
-        >
-          <Search className="w-4 h-4" />
-          Search
-        </button>
       </div>
 
       {/* Pending Fines Alert */}
@@ -140,7 +146,7 @@ const Fine = () => {
             <p className="text-gray-400 text-sm mb-4">{fine.description}</p>
             {fine.status === "pending" && (
               <button
-                onClick={() => handlePayFine(fine.id)}
+                onClick={() => handlePayFine(fine._id)}
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg shadow-md transition"
               >
                 <CreditCard className="w-4 h-4" />
