@@ -16,6 +16,7 @@ import vehicleRoutes from "./routes/vehicleRoutes.js";
 import trackingRoutes from "./routes/trackingRoutes.js";
 import violationRoutes from "./routes/fineRoutes.js";
 import walletRoutes from "./routes/walletRoutes.js";
+import directionsRoute from "./routes/direction.js"
 // Load environment variables
 dotenv.config();
 
@@ -26,6 +27,7 @@ connectDB();
 const app = express();
 app.use(express.json());
 app.use(cors());
+app.use ("/api/directions" , directionsRoute);
 
 // Create HTTP server & bind socket.io
 const server = http.createServer(app);
@@ -200,3 +202,5 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () =>
   console.log(`🚦 Server running on port ${PORT}`)
 );
+
+console.log("Using Google Maps Key:", process.env.GOOGLE_MAPS_KEY?.slice(0, 10));

@@ -58,19 +58,39 @@ const Toll = () => {
     },
   };
 
-  const calculateRoute = () => {
-    if (!fromLocation || !toLocation) return;
+ const calculateRoute = async () => {
+  if (!fromLocation || !toLocation) return;
 
-    const simulatedRoute = {
+  try {
+    const response = await fetch(
+      `http://localhost:5000/api/directions/route?from=${encodeURIComponent(
+        fromLocation
+      )}&to=${encodeURIComponent(toLocation)}`
+    );
+
+    const data = await response.json();
+
+    if (data.error) {
+      console.error("Backend error:", data.error);
+      return;
+    }
+
+    const calculatedRoute = {
       from: fromLocation,
       to: toLocation,
-      distance: Math.floor(Math.random() * 500) + 50,
-      estimatedTime: "3h 45m",
+      distance: data.distance,
+      estimatedTime: data.duration,
       totalToll: tollPoints.reduce((sum, t) => sum + t.rate, 0),
       tollPoints: tollPoints,
     };
-    setRoute(simulatedRoute);
-  };
+
+    setRoute(calculatedRoute);
+  } catch (err) {
+    console.error("Error fetching route:", err);
+  }
+};
+
+
 
   return (
     <div className="min-h-screen bg-gray-900 text-white pt-24 px-6 md:px-12 space-y-8">
